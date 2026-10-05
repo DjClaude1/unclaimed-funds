@@ -1,18 +1,23 @@
 # TradePilot AI — no-credit / self-hosted MVP
 
-TradePilot is a local-first algorithmic trading lab. The current MVP is **paper trading only** and is designed to avoid SaaS builder credit limits.
+TradePilot is a local-first algorithmic trading lab. The MVP is **paper trading only** and does not depend on Lovable/Replit workspace credits.
 
-## What is working
+## Current build
 
 - Local React/Vite dashboard
-- Local Node market-data gateway
-- Live quote/history retrieval through Yahoo Finance's public market-data interface
-- Multi-factor signal engine using EMA 20/50/200, RSI, MACD momentum, ATR and volume confirmation
-- BUY / SELL / HOLD signal with confidence score and rationale
-- ATR-based stop-loss and take-profit levels
+- Local Node/Express market-data gateway
+- Historical daily candles and current quotes through the configured Yahoo Finance data adapter
+- Multi-factor deterministic signal engine: EMA 20/50/200, RSI, MACD momentum, ATR and volume confirmation
+- BUY / SELL / HOLD with confidence and rationale
+- ATR-based stop-loss and take-profit
 - Risk-based paper position sizing
-- Local paper portfolio and trade journal using browser storage
-- Responsive dashboard
+- Browser-persisted paper portfolio and trade journal
+- Historical backtesting API
+- Backtest metrics: total return, max drawdown, Sharpe, win rate and profit factor
+- Commission and slippage assumptions in backtests
+- Conservative same-candle stop/target handling
+- Hard risk-control module for kill switch, daily loss, position-size and per-trade-risk limits
+- Smoke test for the backtesting engine
 - Real-money broker execution intentionally disabled
 
 ## Run locally
@@ -21,6 +26,7 @@ Requirements: Node.js 20+.
 
 ```bash
 npm install
+npm test
 npm run dev
 ```
 
@@ -28,32 +34,40 @@ Open `http://localhost:5173`.
 
 The Vite development server proxies `/api/*` to the local market gateway on port 8787.
 
-## Strategy
+## Backtesting API
 
-The initial deterministic strategy scores trend, momentum and volume:
+Run a five-year-style daily backtest (subject to the data provider's available history):
 
-- EMA20 > EMA50: positive trend component
-- EMA50 > EMA200: primary trend component
-- RSI 50–70: positive momentum component
-- MACD histogram > 0: positive momentum component
-- Above-average volume: confirmation component
+```text
+GET /api/backtest?symbol=AAPL&days=1825&initialCash=10000&riskPct=1
+```
 
-A score is converted to BUY / HOLD / SELL. The algorithm is deliberately transparent so it can be backtested and changed without relying on an opaque AI decision.
+Optional assumptions include `commissionBps`, `slippageBps`, and `maxHoldBars`.
+
+The engine is deterministic and uses only information available up to each historical bar; it does not use future candles to create signals. This is a research tool, not evidence of future profitability.
+
+## Risk controls
+
+`server/risk.js` provides reusable checks for:
+
+- kill switch
+- maximum daily loss
+- maximum position size as a percentage of equity
+- maximum risk per trade
+- available cash
+
+These controls must remain in front of any future broker adapter.
 
 ## Next build phases
 
-1. Add historical backtesting engine with equity curve, drawdown, Sharpe, win rate and profit factor.
+1. Wire backtest results into the dashboard with equity/drawdown charts and parameter controls.
 2. Add persistent PostgreSQL/Supabase schema and authentication.
-3. Add scheduled scanner/worker.
-4. Add broker abstraction with a paper broker first.
-5. Add an optional supported paper broker such as Alpaca.
-6. Add hard risk controls: max daily loss, max open risk, max position size, duplicate-order guard and kill switch.
-7. Only after paper validation: add explicitly opt-in live execution.
+3. Add scheduled scanner/worker and alerting.
+4. Add a broker abstraction with paper-broker contract tests.
+5. Add a supported paper brokerage adapter.
+6. Add order state machine, idempotency keys, audit logs and reconciliation.
+7. Only after extensive paper validation: explicitly opt-in live execution behind all hard risk controls.
 
 ## Safety
 
-This software does not guarantee profits and does not constitute financial advice. Market-data availability, execution quality, slippage, fees and model assumptions can materially affect results. Keep live execution disabled until extensive testing is complete.
-
-## Self-hosting
-
-The application is ordinary source code and can be run on your own machine/server. It does not depend on Lovable/Replit workspace credits. AI coding assistance can be supplied separately through a local/open-source builder such as Dyad or bolt.diy, while the resulting application remains portable.
+TradePilot does not guarantee profits and is not financial advice. Backtests can suffer from data quality, survivorship bias, slippage assumptions, fees, market-regime changes and other limitations. Live execution remains disabled until separately implemented and explicitly enabled.
