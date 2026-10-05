@@ -5,3 +5,5 @@ dist/
 !.env.example
 .DS_Store
 .vscode/
+data/paper-account.json
+data/*.tmp
